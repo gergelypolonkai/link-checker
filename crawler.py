@@ -36,6 +36,7 @@ def main(*args):
         return 1
 
     base_url = args[0]
+    base_parts = urlparse.urlparse(base_url)
     link_cache.append(base_url)
 
     while len(link_cache) > 0:
@@ -53,7 +54,12 @@ def main(*args):
             for a in soup.find_all('a'):
                 link = urlparse.urljoin(base_url, a.get('href'))
 
-                if link.startswith(base_url):
+                link_parts = urlparse.urlparse(link)
+
+                internal = base_parts.scheme == link_parts.scheme \
+                           and base_parts.netloc == link_parts.netloc
+
+                if internal:
                     if link not in checked_links:
                         link_cache.append(link)
                     else:
