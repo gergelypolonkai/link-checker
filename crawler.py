@@ -24,57 +24,96 @@ import requests
 import re
 import urlparse
 
+import pprint
+
+pp = pprint.PrettyPrinter(indent=4)
+
+def _is_internal(base_parts, link_parts):
+    return base_parts.scheme == link_parts.scheme \
+        and base_parts.netloc == link_parts.netloc
+
+def _update_link(checked_links, base_parts, link, checked=False, initial=False):
+    was_checked = False
+    link_parts = urlparse.urlparse(link)
+
+    if link in checked_links:
+        was_checked = checked_links[link]['checked']
+        checked_links[link]['checked'] = checked_links[link]['checked'] \
+                                         or checked
+        if not initial:
+            checked_links[link]['count'] += 1
+    else:
+        checked_links[link] = {
+            'checked': checked,
+            'count': 0 if initial else 1,
+            'external': not _is_internal(base_parts, link_parts),
+        }
+
+    return was_checked
+
 def main(*args):
     # We will store the links already checked here
-    checked_links = []
-
-    # This contains the links that still needs to be checked
-    link_cache = []
+    checked_links = {}
 
     if len(args) < 1:
         print("Usage: %s <url>" % sys.argv[0])
+
         return 1
 
     base_url = args[0]
     base_parts = urlparse.urlparse(base_url)
-    link_cache.append(base_url)
+    _update_link(checked_links, base_parts, base_url, initial=True)
 
-    while len(link_cache) > 0:
-        link = link_cache[0]
-        link_cache = [x for x in link_cache if x != link]
-        checked_links.append(link)
+    while len([x for x in checked_links \
+               if checked_links[x]['checked'] == False]) > 0:
 
-        print("Checking %s" % link)
+        current_link = [x for x in checked_links \
+                        if checked_links[x]['checked'] == False][0]
+        current_parts = urlparse.urlparse(current_link)
 
-        r = requests.get(link)
+        print("Checking %s" % current_link)
 
-        if r.status_code == 200:
-            soup = BeautifulSoup(r.content)
+        _update_link(checked_links, base_parts, current_link, checked=True)
+
+        checked_links[current_link]['uncheckable'] = current_parts.scheme \
+                                                     not in ('http', 'httus',)
+
+        if checked_links[current_link]['uncheckable']:
+            continue
+
+        response = requests.get(current_link, allow_redirects=False)
+
+        if response.ok:
+            checked_links[current_link]['broken'] = False
+            # If we are being redirected, add the redirect link to
+            # link_cache. We will check them later
+            if response.is_redirect:
+                _update_link(
+                    checked_links,
+                    base_parts,
+                    response.headers['location'],
+                    initial=True)
+                checked_links[current_link]['redirect'] = True
+
+                continue
+            else:
+                checked_links[current_link]['redirect'] = False
+
+            # Don’t crawl external pages
+            if checked_links[current_link]['external']:
+                continue
+
+            soup = BeautifulSoup(response.content)
 
             for a in soup.find_all('a'):
                 link = urlparse.urljoin(base_url, a.get('href'))
-
                 link_parts = urlparse.urlparse(link)
 
-                internal = base_parts.scheme == link_parts.scheme \
-                           and base_parts.netloc == link_parts.netloc
-
-                if internal:
-                    if link not in checked_links:
-                        link_cache.append(link)
-                    else:
-                        print("Skipping checked link %s" % link)
-                else:
-                    print("Skipping external link %s" % link)
+                _update_link(checked_links, base_parts, link)
         else:
-            print r.status_code
+            checked_links[current_link]['broken'] = True
 
-    print("Done. Checked links:")
-
-    with open('link_list.txt', 'w') as f:
-        for link in checked_links:
-            f.write(link + "\n")
-            print link
+    pp.pprint(checked_links)
 
 if __name__ == '__main__':
     main(*sys.argv[1:])
