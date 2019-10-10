@@ -49,6 +49,14 @@ def _update_link(checked_links, base_parts, link, checked=False, initial=False):
 
     return was_checked
 
+
+class ConnectErrorResponse:
+    """Fake response class for links we can’t even connect to (connection or SSL errors)
+    """
+
+    ok = False
+
+
 def main(*args):
     # We will store the links already checked here
     checked_links = {}
@@ -75,7 +83,10 @@ def main(*args):
         if checked_links[current_link]['uncheckable']:
             continue
 
-        response = requests.get(current_link, allow_redirects=False)
+        try:
+            response = requests.get(current_link, allow_redirects=False)
+        except requests.exceptions.ConnectionError:
+            response = ConnectErrorResponse()
 
         if response.ok:
             checked_links[current_link]['broken'] = False
