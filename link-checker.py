@@ -16,6 +16,8 @@
 """
 
 import sys
+import time
+
 from bs4 import BeautifulSoup
 import requests
 from urllib.parse import urljoin, urlparse
@@ -64,6 +66,7 @@ class ConnectErrorResponse:
 def main(*args):
     # We will store the links already checked here
     checked_links = {}
+    start_time = time.time()
 
     if len(args) < 1:
         print("Usage: %s <url>" % sys.argv[0])
@@ -126,6 +129,9 @@ def main(*args):
             checked_links[current_link]['broken'] = True
 
     pp.pprint(checked_links)
+
+    crawl_time = time.time() - start_time
+    print(f'Finished crawling in {crawl_time:.0f}s')
 
 
 if __name__ == '__main__':
