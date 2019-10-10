@@ -86,9 +86,9 @@ def main(*args):
 
         _update_link(checked_links, base_parts, current_link, None, checked=True)
 
-        checked_links[current_link]['uncheckable'] = current_parts.scheme not in ('http', 'https',)
+        if current_parts.scheme not in ('http', 'https'):
+            checked_links[current_link]['uncheckable'] = True
 
-        if checked_links[current_link]['uncheckable']:
             continue
 
         try:
