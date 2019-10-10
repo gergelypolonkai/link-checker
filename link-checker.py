@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -14,32 +12,32 @@
 # along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 
-"""
-Web link checker script by Gergely Polonkai.
+"""Web link checker script by Gergely Polonkai.
 """
 
 import sys
 from bs4 import BeautifulSoup
 import requests
-import re
-import urlparse
+from urllib.parse import urljoin, urlparse
 
 import pprint
 
 pp = pprint.PrettyPrinter(indent=4)
 
+
 def _is_internal(base_parts, link_parts):
     return base_parts.scheme == link_parts.scheme \
         and base_parts.netloc == link_parts.netloc
 
+
 def _update_link(checked_links, base_parts, link, checked=False, initial=False):
     was_checked = False
-    link_parts = urlparse.urlparse(link)
+    link_parts = urlparse(link)
 
     if link in checked_links:
         was_checked = checked_links[link]['checked']
-        checked_links[link]['checked'] = checked_links[link]['checked'] \
-                                         or checked
+        checked_links[link]['checked'] = checked_links[link]['checked'] or checked
+
         if not initial:
             checked_links[link]['count'] += 1
     else:
@@ -61,22 +59,18 @@ def main(*args):
         return 1
 
     base_url = args[0]
-    base_parts = urlparse.urlparse(base_url)
+    base_parts = urlparse(base_url)
     _update_link(checked_links, base_parts, base_url, initial=True)
 
-    while len([x for x in checked_links \
-               if checked_links[x]['checked'] == False]) > 0:
-
-        current_link = [x for x in checked_links \
-                        if checked_links[x]['checked'] == False][0]
-        current_parts = urlparse.urlparse(current_link)
+    while len([x for x in checked_links if not checked_links[x]['checked']]) > 0:
+        current_link = [x for x in checked_links if not checked_links[x]['checked']][0]
+        current_parts = urlparse(current_link)
 
         print("Checking %s" % current_link)
 
         _update_link(checked_links, base_parts, current_link, checked=True)
 
-        checked_links[current_link]['uncheckable'] = current_parts.scheme \
-                                                     not in ('http', 'httus',)
+        checked_links[current_link]['uncheckable'] = current_parts.scheme not in ('http', 'https',)
 
         if checked_links[current_link]['uncheckable']:
             continue
@@ -106,14 +100,14 @@ def main(*args):
             soup = BeautifulSoup(response.content)
 
             for a in soup.find_all('a'):
-                link = urlparse.urljoin(base_url, a.get('href'))
-                link_parts = urlparse.urlparse(link)
+                link = urljoin(base_url, a.get('href'))
 
                 _update_link(checked_links, base_parts, link)
         else:
             checked_links[current_link]['broken'] = True
 
     pp.pprint(checked_links)
+
 
 if __name__ == '__main__':
     main(*sys.argv[1:])
