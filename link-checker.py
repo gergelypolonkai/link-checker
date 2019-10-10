@@ -15,16 +15,13 @@
 """Web link checker script by Gergely Polonkai.
 """
 
+import pickle
 import sys
 import time
 
 from bs4 import BeautifulSoup
 import requests
 from urllib.parse import urljoin, urlparse
-
-import pprint
-
-pp = pprint.PrettyPrinter(indent=4)
 
 
 def _is_internal(base_parts, link_parts):
@@ -128,10 +125,11 @@ def main(*args):
         else:
             checked_links[current_link]['broken'] = True
 
-    pp.pprint(checked_links)
-
     crawl_time = time.time() - start_time
     print(f'Finished crawling in {crawl_time:.0f}s')
+
+    with open('result.pickle', 'wb') as fh:
+        pickle.dump(checked_links, fh)
 
 
 if __name__ == '__main__':
