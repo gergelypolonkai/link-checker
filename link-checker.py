@@ -30,7 +30,7 @@ def _is_internal(base_parts, link_parts):
         and base_parts.netloc == link_parts.netloc
 
 
-def _update_link(checked_links, base_parts, link, checked=False, initial=False):
+def _update_link(checked_links, base_parts, link, origin, checked=False, initial=False):
     was_checked = False
     link_parts = urlparse(link)
 
@@ -45,7 +45,11 @@ def _update_link(checked_links, base_parts, link, checked=False, initial=False):
             'checked': checked,
             'count': 0 if initial else 1,
             'external': not _is_internal(base_parts, link_parts),
+            'sources': set(),
         }
+
+    if origin is not None:
+        checked_links[link]['sources'].add(origin)
 
     return was_checked
 
@@ -68,7 +72,7 @@ def main(*args):
 
     base_url = args[0]
     base_parts = urlparse(base_url)
-    _update_link(checked_links, base_parts, base_url, initial=True)
+    _update_link(checked_links, base_parts, base_url, None, initial=True)
     counter = 0
 
     while len([x for x in checked_links if not checked_links[x]['checked']]) > 0:
@@ -80,7 +84,7 @@ def main(*args):
 
         print(f'Checking {current_link} ({counter}/{link_count}, {percentage:.2f}%)')
 
-        _update_link(checked_links, base_parts, current_link, checked=True)
+        _update_link(checked_links, base_parts, current_link, None, checked=True)
 
         checked_links[current_link]['uncheckable'] = current_parts.scheme not in ('http', 'https',)
 
@@ -97,11 +101,11 @@ def main(*args):
             # If we are being redirected, add the redirect link to
             # link_cache. We will check them later
             if response.is_redirect:
-                _update_link(
-                    checked_links,
-                    base_parts,
-                    response.headers['location'],
-                    initial=True)
+                _update_link(checked_links,
+                             base_parts,
+                             response.headers['location'],
+                             current_link,
+                             initial=True)
                 checked_links[current_link]['redirect'] = True
 
                 continue
@@ -117,7 +121,7 @@ def main(*args):
             for a in soup.find_all('a'):
                 link = urljoin(base_url, a.get('href'))
 
-                _update_link(checked_links, base_parts, link)
+                _update_link(checked_links, base_parts, link, current_link)
         else:
             checked_links[current_link]['broken'] = True
 
