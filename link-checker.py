@@ -107,6 +107,7 @@ def main(*args):
                              current_link,
                              initial=True)
                 checked_links[current_link]['redirect'] = True
+                checked_links[current_link]['redirect_target'] = response.headers['location']
 
                 continue
             else:
