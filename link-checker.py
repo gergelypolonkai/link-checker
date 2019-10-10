@@ -69,12 +69,16 @@ def main(*args):
     base_url = args[0]
     base_parts = urlparse(base_url)
     _update_link(checked_links, base_parts, base_url, initial=True)
+    counter = 0
 
     while len([x for x in checked_links if not checked_links[x]['checked']]) > 0:
+        counter += 1
+        link_count = len(checked_links)
+        percentage = (counter / link_count) * 100
         current_link = [x for x in checked_links if not checked_links[x]['checked']][0]
         current_parts = urlparse(current_link)
 
-        print("Checking %s" % current_link)
+        print(f'Checking {current_link} ({counter}/{link_count}, {percentage:.2f}%)')
 
         _update_link(checked_links, base_parts, current_link, checked=True)
 
